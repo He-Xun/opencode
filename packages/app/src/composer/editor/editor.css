@@ -78,7 +78,11 @@
 
 [data-color-scheme="dark"] [data-component="composer"][data-dock-border-underlay="true"],
 [data-color-scheme="dark"] [data-component="session-composer-dock"] [data-component="composer"],
-[data-color-scheme="dark"] [data-component="new-session"] [data-component="composer"] {
+[data-color-scheme="dark"] [data-component="new-session"] [data-component="composer"],
+[data-color-scheme="dark"]
+  [data-component="composer-suggestions"]:has(~ [data-component="composer"][data-dock-border-underlay="true"]),
+[data-color-scheme="dark"] [data-component="session-composer-dock"] [data-component="composer-suggestions"],
+[data-color-scheme="dark"] [data-component="new-session"] [data-component="composer-suggestions"] {
   background: var(--v2-background-bg-layer-01);
 }
 
@@ -86,8 +90,4 @@
   :is([data-component="composer"], [data-component="dock-prompt"], [data-component="session-websearch-dock"]) {
   background: transparent !important;
   box-shadow: none !important;
-}
-
-[data-color-scheme="dark"] [data-component="composer-suggestions"] [data-active] {
-  background: var(--v2-alpha-light-10);
 }
