@@ -15,10 +15,12 @@ import { App } from "../../app.js"
 const SearchResponse = Schema.Struct({
   results: Schema.Array(
     Schema.Struct({
-      url: Schema.String,
-      title: Schema.String.pipe(Schema.optional),
-      content: Schema.String.pipe(Schema.optional),
-      publishedDate: Schema.String.pipe(Schema.optional),
+      // SearXNG emits entries without a URL and `"publishedDate": null`; both
+      // are filtered or ignored below instead of failing the whole response.
+      url: Schema.optional(Schema.NullOr(Schema.String)),
+      title: Schema.optional(Schema.NullOr(Schema.String)),
+      content: Schema.optional(Schema.NullOr(Schema.String)),
+      publishedDate: Schema.optional(Schema.NullOr(Schema.String)),
     }),
   ),
 })
@@ -67,11 +69,11 @@ export const Plugin = define<HttpClient.HttpClient | Scope.Scope>({
               return yield* Effect.fail(
                 new Error("SearXNG has no server URL yet. Set it in Settings, or export SEARXNG_URL."),
               )
-            const request = yield* HttpClientRequest.get(searchUrl(server, input.query)).pipe(
+            const request = HttpClientRequest.get(searchUrl(server, input.query)).pipe(
               HttpClientRequest.acceptJson,
               HttpClientRequest.setHeaders({ "User-Agent": App.useragent(ctx.app) }),
             )
-            const response = yield* HttpClient.filterStatusOk(http)
+            const response = yield* HttpClient.withScope(HttpClient.filterStatusOk(http))
               .execute(request)
               .pipe(
                 Effect.flatMap(HttpClientResponse.schemaBodyJson(SearchResponse)),
@@ -81,15 +83,20 @@ export const Plugin = define<HttpClient.HttpClient | Scope.Scope>({
                   orElse: () => Effect.fail(new Error("SearXNG web search request timed out")),
                 }),
               )
-            return response.results.slice(0, DEFAULT_LIMIT).map((item) => {
+            return response.results.flatMap((item) => {
+              if (!item.url || !item.url.trim()) return []
               const published = item.publishedDate ? Date.parse(item.publishedDate) : undefined
-              return {
-                url: item.url,
-                ...(item.title ? { title: item.title } : {}),
-                ...(item.content ? { content: item.content } : {}),
-                time: { ...(published !== undefined && Number.isFinite(published) ? { published } : {}) },
-              }
-            })
+              const title = item.title?.trim() || undefined
+              const content = item.content?.trim() || undefined
+              return [
+                {
+                  url: item.url,
+                  ...(title ? { title } : {}),
+                  ...(content ? { content } : {}),
+                  time: { ...(published !== undefined && Number.isFinite(published) ? { published } : {}) },
+                },
+              ]
+            }).slice(0, DEFAULT_LIMIT)
           }),
       })
     })

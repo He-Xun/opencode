@@ -52,6 +52,15 @@ describe("built-in web search providers", () => {
         const integrations = yield* Integration.Service
         const websearch = yield* WebSearch.Service
         yield* plugin.effect(host({ integration: integrationHost(integrations), websearch: webSearchHost(websearch) }))
+        // SearXNG's account is a server address: without one it fails before
+        // any request, so the shared 429 path needs a configured server.
+        if (plugin.id === "opencode.websearch.searxng") {
+          yield* integrations.connection.external({
+            integrationID: Integration.ID.make("searxng"),
+            methodID: Integration.MethodID.make("server"),
+            answer: { url: "http://localhost:8080" },
+          })
+        }
         yield* websearch.select("random")
         expect(yield* websearch.query({ query: "limited" }).pipe(Effect.flip)).toBeInstanceOf(WebSearch.RequestError)
         expect(signals).toHaveLength(1)
